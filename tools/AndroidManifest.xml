@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The package's manifest for a program on the Meta Quest 3. build-apk.sh fills in the three
+  placeholders: the application id (@PACKAGE@), the name under the icon (@LABEL@) and the program's
+  library, lib@LIBRARY@.so.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="@PACKAGE@"
+    android:versionCode="1"
+    android:versionName="0.1"
+    android:installLocation="auto">
+
+    <!-- Quest 3 runs Android 12L (API 32); without a target this recent the system refuses some
+         newer features. -->
+    <uses-sdk android:minSdkVersion="32" android:targetSdkVersion="34" />
+
+    <!-- A headset application: head tracking is required, and OpenGL ES 3 draws the eyes. -->
+    <uses-feature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
+    <uses-feature android:glEsVersion="0x00030001" android:required="true" />
+
+    <!-- The Khronos OpenXR loader asks the runtime broker which runtime to load. -->
+    <uses-permission android:name="org.khronos.openxr.permission.OPENXR" />
+    <uses-permission android:name="org.khronos.openxr.permission.OPENXR_SYSTEM" />
+
+    <!-- Android 11 and later hide other packages unless a program says which it looks for: these
+         are the broker's providers and the services a runtime or an API layer offers. -->
+    <queries>
+        <provider android:authorities="org.khronos.openxr.runtime_broker;org.khronos.openxr.system_runtime_broker" />
+        <intent>
+            <action android:name="org.khronos.openxr.OpenXRRuntimeService" />
+        </intent>
+        <intent>
+            <action android:name="org.khronos.openxr.OpenXRApiLayerService" />
+        </intent>
+    </queries>
+
+    <!-- hasCode false: no Java, the program is the library NativeActivity loads. -->
+    <application
+        android:label="@LABEL@"
+        android:hasCode="false"
+        android:allowBackup="false">
+
+        <!-- Without this the headset runs the program in a compatibility mode meant for older
+             devices. -->
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest3|quest3s" />
+
+        <!-- configChanges: the activity is never recreated (the headset's session holds a reference
+             to it, which would go stale); singleTask: one of it at a time. -->
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="@LABEL@"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="false"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+
+            <meta-data android:name="android.app.lib_name" android:value="@LIBRARY@" />
+
+            <!-- Focus aware: the program keeps running, shown, while the system's menu is over it
+                 (the session goes VISIBLE, not paused), and gets the controls back afterwards. -->
+            <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <!-- VR: the headset starts it immersive, not in a flat window. -->
+                <category android:name="com.oculus.intent.category.VR" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
