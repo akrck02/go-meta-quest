@@ -89,13 +89,13 @@ func TestLeavingNeverWaitsForeverForTheRuntime(test *testing.T) {
 }
 
 func TestThePanelsAskedForAreCheckedBeforeAnyIsMade(test *testing.T) {
-	if err := checkPanels([]PanelSize{{1024, 768}, {512, 512}}); err != nil {
+	if err := CheckPanels([]PanelSize{{1024, 768}, {512, 512}}); err != nil {
 		test.Fatalf("two sized panels were refused: %v", err)
 	}
-	if err := checkPanels([]PanelSize{{1024, 0}}); err == nil {
+	if err := CheckPanels([]PanelSize{{1024, 0}}); err == nil {
 		test.Fatal("a panel with no height was taken")
 	}
-	if err := checkPanels(make([]PanelSize, openxr.MostPanels+1)); err == nil {
+	if err := CheckPanels(make([]PanelSize, openxr.MostPanels+1)); err == nil {
 		test.Fatal("more panels than a session holds were taken")
 	}
 }

@@ -63,9 +63,9 @@ type PanelSize struct {
 	Width, Height int
 }
 
-// checkPanels says what is wrong with the panels asked for, before any is made: a session holds
+// CheckPanels says what is wrong with the panels asked for, before any is made: a session holds
 // only so many, and a panel needs a picture.
-func checkPanels(sizes []PanelSize) error {
+func CheckPanels(sizes []PanelSize) error {
 	if len(sizes) > openxr.MostPanels {
 		return fmt.Errorf("app: %d panels asked for, a session has at most %d", len(sizes), openxr.MostPanels)
 	}
