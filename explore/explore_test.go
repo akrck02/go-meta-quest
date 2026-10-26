@@ -113,6 +113,42 @@ func TestTheStickWalksOnTheGround(test *testing.T) {
 	}
 }
 
+func TestTheWalkCanBeFaster(test *testing.T) {
+	made := New(scene.New(), Options{WalkMetresSecond: 4.5})
+	state := input.NewState()
+	state.Feed().SetStick(0, 1)
+	for range 60 {
+		made.Steer(state, 1.0/60, graphics.Pose{Orientation: graphics.IdentityQuaternion(), Position: graphics.Vector{0, 1.6, 0, 1}}, true)
+	}
+	if !nearlyEqual(made.Rig().Position[2], -4.5) {
+		test.Fatalf("a second of a full stick moved the room to %v, want 4.5 m north", made.Rig().Position)
+	}
+}
+
+func TestTheRightStickTurnsSmoothlyAboutTheHeadWhenAsked(test *testing.T) {
+	made := New(scene.New(), Options{TurnRadiansSecond: math.Pi / 2})
+	head := graphics.Pose{Orientation: graphics.IdentityQuaternion(), Position: graphics.Vector{0.3, 1.6, -0.2, 1}}
+	before := made.Rig().EyePosition(head)
+	state := input.NewState()
+	state.Feed().SetRightStick(-0.5, 0) // halfway to the left
+	for range 72 {
+		made.Steer(state, 1.0/72, head, true)
+	}
+	if !nearlyEqual(made.Rig().YawRadians, math.Pi/4) {
+		test.Fatalf("a second halfway to the left turned the room %v, want π/4", made.Rig().YawRadians)
+	}
+	if after := made.Rig().EyePosition(head); !nearlyEqual(after[0], before[0]) || !nearlyEqual(after[2], before[2]) {
+		test.Fatalf("the head moved from %v to %v as it turned", before, after)
+	}
+	if x, _ := state.RightStick(); x != -0.5 {
+		test.Fatalf("the program's right stick reads %v after steering, want it as it was", x)
+	}
+	allocations := testing.AllocsPerRun(100, func() { made.Steer(state, 1.0/72, head, true) })
+	if allocations != 0 {
+		test.Fatalf("a frame's smooth turn made %v allocations, want none", allocations)
+	}
+}
+
 func TestHandCubesFollowTrackedHandsOnly(test *testing.T) {
 	world := scene.New()
 	made := New(world, Options{})

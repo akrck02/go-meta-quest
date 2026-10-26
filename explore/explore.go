@@ -1,11 +1,12 @@
 // Package explore walks a player through a scene in the headset, at room scale: the left stick
-// walks the way the player looks, the right stick turns in steps (smooth turning makes people
-// queasy), walking in the room walks in the scene too, and Y or B makes the player a giant, with
+// walks the way the player looks, the right stick turns in steps (smooth turning makes some people
+// queasy; a program may ask for it), walking in the room walks in the scene too, and Y or B makes the player a giant, with
 // the whole scene a model at their feet, and back again. A small cube sits in each controller's
 // grip. Any scene.Scene can be explored; a program only says which, and where the player starts.
 package explore
 
 import (
+	"github.com/akrck02/go-meta-quest/place"
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/gles"
 	"github.com/akrck02/go-renderer/graphics"
@@ -43,6 +44,12 @@ type Options struct {
 	GiantScale float32
 	// Far is the farthest the eyes see, in scene units (0 = DefaultFar).
 	Far float32
+	// WalkMetresSecond is how far the left stick all the way walks in a second, in the player's
+	// own metres (0 = camera.DefaultRigWalkSpeedMetres): faster for a long scene.
+	WalkMetresSecond float32
+	// TurnRadiansSecond, when set, turns the player smoothly about their head with the right
+	// stick, as fast as this all the way over, instead of in steps.
+	TurnRadiansSecond float64
 	// Update, when set, is called every frame after the sticks have moved the player, with the
 	// controllers as a game pad: a program's own buttons, such as one that shows another scene.
 	Update func(explorer *Explorer, state *input.State)
@@ -57,6 +64,7 @@ type Explorer struct {
 	walk       camera.RigWalk
 	giantScale float32
 	far        float32
+	turnSpeed  float64        // radians a second with the right stick all the way over; 0 turns in steps
 	hands      [2]*scene.Node // left, right
 	views      []gles.View
 	poses      []graphics.Pose
@@ -67,7 +75,7 @@ type Explorer struct {
 // a small cube in each hand, hidden until the hand is tracked. The hands' cubes are added to the
 // scene.
 func New(world *scene.Scene, options Options) *Explorer {
-	made := &Explorer{world: world, rig: options.Start, giantScale: options.GiantScale, far: options.Far,
+	made := &Explorer{world: world, rig: options.Start, giantScale: options.GiantScale, far: options.Far, turnSpeed: options.TurnRadiansSecond,
 		views: make([]gles.View, 2), poses: make([]graphics.Pose, 2), fields: make([]graphics.FieldOfView, 2)}
 	if made.rig.Scale == 0 {
 		made.rig.Scale = PersonScale
@@ -78,7 +86,7 @@ func New(world *scene.Scene, options Options) *Explorer {
 	if made.far == 0 {
 		made.far = DefaultFar
 	}
-	made.walk = camera.RigWalk{Ground: world.GroundHeight}
+	made.walk = camera.RigWalk{Ground: world.GroundHeight, SpeedMetres: options.WalkMetresSecond}
 	colours := [2]graphics.Vector{{0.25, 0.55, 0.9, 1}, {0.3, 0.8, 0.45, 1}}
 	for index, colour := range colours {
 		hand := &scene.Node{Name: "hand", Transform: graphics.Identity(), Mesh: boxMesh("hand", handCubeSize, colour),
@@ -120,12 +128,28 @@ func (made *Explorer) Move(rig camera.Rig) {
 
 // Steer applies the controllers to the rig: Y or B switches between a person and a giant, with the
 // head over the same point of the ground; the sticks walk and turn. An untracked head is a guess,
-// so the size waits for a tracked one rather than move the player to where the head is not.
+// so the size waits for a tracked one rather than move the player to where the head is not. A
+// program whose right stick scrolls a panel the player points at feeds it 0 sideways meanwhile, so
+// the player does not turn as they scroll.
 func (made *Explorer) Steer(state *input.State, seconds float64, head graphics.Pose, headTracked bool) {
+	if state == nil {
+		made.walk.Update(nil, seconds, head, &made.rig)
+		return
+	}
 	if headTracked && (state.PadPressed(input.PadY) || state.PadPressed(input.PadB)) {
 		made.rig = rescale(made.rig, head, made.otherScale(made.rig.Scale), made.walk.Ground)
 	}
+	if made.turnSpeed == 0 {
+		made.walk.Update(state, seconds, head, &made.rig)
+		return
+	}
+	turnX, turnY := state.RightStick()
+	state.Feed().SetRightStick(0, turnY) // no steps: the turn is the smooth one
 	made.walk.Update(state, seconds, head, &made.rig)
+	state.Feed().SetRightStick(turnX, turnY)
+	if turnX != 0 {
+		made.rig = place.TurnedAround(made.rig, head, float32(-turnX*made.turnSpeed*seconds)) // pushing right turns clockwise
+	}
 }
 
 // Follow puts a small cube on each tracked hand, where it is held, and hides an untracked one.
