@@ -1,6 +1,0 @@
-# What the tools make: packages, libraries, the downloaded OpenXR loader
-/build/
-/third_party/openxr-loader/
-*.apk
-*.so
-*.idsig
