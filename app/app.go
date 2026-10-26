@@ -23,6 +23,10 @@ type Options struct {
 	Hidden func()
 	// Shown is called when the program comes back into view, and at its start.
 	Shown func()
+	// Passthrough shows the room behind the scene, when the headset can: draw the eyes with
+	// gles.SceneRenderer.SeeThrough, and the room shows wherever nothing is drawn. Frame.ShowsRoom
+	// tells whether it is shown.
+	Passthrough bool
 	// Panels are the flat pictures the program shows in the world (interfaces, signs), by their
 	// size in pixels: they are made when the session opens and handed out in every Frame, in this
 	// order. At most openxr.MostPanels.
@@ -70,6 +74,9 @@ type Frame struct {
 	// SRGB tells whether the eyes' framebuffers encode sRGB themselves: draw linear colour into them
 	// (gles.SceneRenderer.LinearOutput), or the colours come out twice as light.
 	SRGB bool
+	// ShowsRoom tells whether the room is shown behind the scene (Options.Passthrough, on a
+	// headset that has it): draw with gles.SceneRenderer.SeeThrough while it is true.
+	ShowsRoom bool
 	// Functions is OpenGL ES, on the thread that draws.
 	Functions gles.Functions
 	// Panels are the panels Options.Panels asked for, in its order, the same every frame. Set where
@@ -149,7 +156,7 @@ func (loop *loop) frame(headset android.Headset, functions android.GL) bool {
 
 // open opens the session the first time a frame is asked for, when the headset's context exists.
 func (loop *loop) open(headset android.Headset) bool {
-	session, err := openxr.Open(headset, openxr.Options{ApplicationName: loop.options.ApplicationName})
+	session, err := openxr.Open(headset, openxr.Options{ApplicationName: loop.options.ApplicationName, Passthrough: loop.options.Passthrough})
 	if err != nil {
 		loop.err = err
 		return false
@@ -221,6 +228,7 @@ func (loop *loop) describe(shown openxr.Frame, functions android.GL) Frame {
 		ShouldRender: shown.ShouldRender,
 		Eyes:         shown.Eyes,
 		SRGB:         session.SRGB(),
+		ShowsRoom:    session.ShowsRoom(),
 		Functions:    functions,
 		Panels:       loop.panels,
 		session:      session,

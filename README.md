@@ -7,8 +7,9 @@
 Go programs on the **Meta Quest 3**, as packages installed with `adb`. The drawing and the headset's
 OpenXR session are [Go Renderer](https://github.com/akrck02/go-renderer)'s (`openxr`, `android`,
 `gles`); this repository holds the rest of the platform: the program loop (`app`), the tools that
-make a package, pointing at panels with a controller (`pointer`), and four programs: a colour in
-each eye, a cube that stands still in the room, Go Renderer's sample island to walk with the
+make a package, pointing at panels with a controller (`pointer`), and five programs: a colour in
+each eye, a cube that stands still in the room, the same cube in your own room seen through the
+headset's cameras, Go Renderer's sample island to walk with the
 controllers, as a person or as a giant, and a board floating over it to click with a laser.
 
 ```bash
