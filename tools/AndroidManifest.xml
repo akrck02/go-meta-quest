@@ -17,6 +17,9 @@
     <!-- A headset application: head tracking is required, and OpenGL ES 3 draws the eyes. -->
     <uses-feature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
     <uses-feature android:glEsVersion="0x00030001" android:required="true" />
+    <!-- The room behind the scene (openxr's Options.Passthrough). Not required: a program that does
+         not ask for it runs the same. -->
+    <uses-feature android:name="com.oculus.feature.PASSTHROUGH" android:required="false" />
 
     <!-- The Khronos OpenXR loader asks the runtime broker which runtime to load. -->
     <uses-permission android:name="org.khronos.openxr.permission.OPENXR" />
