@@ -37,11 +37,10 @@ You need:
 `tools/build-apk.sh` finds the SDK in `ANDROID_HOME` and the NDK in `ANDROID_NDK_HOME` (or in
 Homebrew's `android-commandlinetools`, on a Mac).
 
-Clone Go for Meta Quest and Go Renderer side by side; until Go Renderer releases its headset pieces,
-this repository builds against the checkout next to it:
+Clone Go for Meta Quest; Go fetches Go Renderer by itself, at the commit `go.mod` names (its
+headset pieces are on its `feature/openxr` branch until it releases them):
 
 ```sh
-git clone https://github.com/akrck02/go-renderer
 git clone https://github.com/akrck02/go-meta-quest
 cd go-meta-quest
 ```
@@ -418,19 +417,16 @@ A program of your own, in a module of your own, in the headset, and shared with 
 carry.
 
 > **Hint:** `tools/build-apk.sh` builds from the folder it is run in, so it works for any module.
-> Until Go Renderer releases its headset pieces, your module points at the two checkouts with
-> `replace` lines.
+> Your module needs Go for Meta Quest, which brings Go Renderer with it.
 
 <details>
 <summary>🔓 Show the solution</summary>
 
-1. Beside the two checkouts:
+1. Beside your Go for Meta Quest checkout:
 
    <pre><code>mkdir headset && cd headset
    go mod init example.com/headset
-   go mod edit -require=github.com/akrck02/go-meta-quest@v0.0.0 \
-       -replace=github.com/akrck02/go-meta-quest=../go-meta-quest \
-       -replace=github.com/akrck02/go-renderer=../go-renderer</code></pre>
+   go get github.com/akrck02/go-meta-quest@feature/first-steps</code></pre>
 
 2. Copy `cmd/cube` into `./mine`, change the cube's colour in `world.go`, and `go mod tidy`.
 3. `../go-meta-quest/tools/build-apk.sh ./mine`, then `../go-meta-quest/tools/install.sh build/mine.apk`.

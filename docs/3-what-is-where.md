@@ -29,8 +29,8 @@ projections (`graphics`), the rig and the covering lens (`camera`).
 - The Android SDK's build tools (`aapt2`, `zipalign` with `-P`, so 35 or later; `apksigner`) and a
   platform, in `ANDROID_HOME`; the NDK in `ANDROID_NDK_HOME`. On a Mac, Homebrew's
   `android-commandlinetools` is found without them.
-- A Go Renderer checkout beside this one, with its headset pieces (`go.mod`'s `replace` line), until
-  they are released.
+- Go Renderer's headset pieces, which `go.mod` fetches by itself: a commit of its `feature/openxr`
+  branch, until they are released.
 - `adb`, and a Meta Quest 3 or 3S in developer mode.
 
 ```bash

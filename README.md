@@ -19,12 +19,10 @@ tools/install.sh build/cube.apk    # on the headset, in developer mode
 It needs Go, the Android SDK and NDK, and a headset in developer mode. Everything is in
 [docs/](docs/1-overview.md); to start, [the headset quest](docs/2-the-quest.md).
 
-**Nothing here has run on a headset yet.** The programs build into packages and the tests pass on a
-computer; see [what was checked](docs/3-what-is-where.md#what-was-checked).
+The four programs run on a Meta Quest 3; see [what was checked](docs/3-what-is-where.md#what-was-checked).
 
-`go.mod` builds against a Go Renderer checkout beside this one
-(`replace github.com/akrck02/go-renderer => ../go-renderer`), because the headset's pieces are not
-released yet. The line goes once Go Renderer releases them.
+`go.mod` pins Go Renderer at a commit of its `feature/openxr` branch, where the headset's pieces are
+until Go Renderer releases them; then it moves to that release.
 
 ## License
 
