@@ -1,0 +1,160 @@
+<h1 id="what-is-where">What is where</h1>
+
+<p>The packages of Go for Meta Quest, the programs and tools it comes with, what you need to build for
+the headset, and what was checked: so far, only on a computer.</p>
+
+<h2 id="what-is-where-1">What is where</h2>
+
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>What it does</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>app</code></td>
+<td>The program loop. <code>Run</code> starts Go Renderer&rsquo;s headset activity (<code>android.RunHeadset</code>: no window, an OpenGL ES 3 context on its own thread), opens the OpenXR session there (<code>openxr.Open</code>), and goes round: it reads the session&rsquo;s news; while the session does not run (the headset off the head, starting, paused) it sleeps 10 ms; while it runs it begins a frame, reads the controllers (only while the program has them), calls the program&rsquo;s step, and ends the frame. It stops when the runtime asks the program to leave; when the step returns false or a frame fails it first asks the runtime to stop the session (<code>RequestExit</code>) and hands back empty frames until it has, two seconds at most. It closes the session on the drawing thread. Each <code>Frame</code> carries the input state (the controllers as a game pad), the head&rsquo;s pose and whether it is tracked, both hands, the seconds since the last frame (from the display times, at most a tenth of a second), whether the program has the controllers, whether the frame will be shown, the two eyes (pose, field of view, framebuffer), whether those encode sRGB, and OpenGL ES. <code>Options.Panels</code> asks for panels by their size in pixels (<code>PanelSize</code>, at most <code>openxr.MostPanels</code>, checked before any is made); they are made when the session opens and every <code>Frame.Panels</code> holds them in that order, to place (<code>Pose</code>, <code>FitWidth</code>, <code>Shown</code>) and draw into (<code>Target</code>, only when the picture changes). <code>Frame.Vibrate(hand, amplitude, duration)</code> shakes a controller.</td>
+</tr>
+
+<tr>
+<td><code>cmd/clear</code></td>
+<td>The first program: each eye cleared to a colour of its own going slowly round the colour wheel, the right eye half a turn behind. No renderer: it checks the package, the loader, the session and the pictures with nothing else in the way.</td>
+</tr>
+
+<tr>
+<td><code>cmd/cube</code></td>
+<td>A lit 30 cm cube 1.5 m ahead of where the player first looked, at the head&rsquo;s height, that stays there in the room; a 5 cm cube in each tracked controller&rsquo;s grip. Drawn by Go Renderer&rsquo;s <code>gles.SceneRenderer.DrawViews</code>: the frame planned once from a lens covering both eyes (<code>camera.CoveringLens</code>), then drawn in each eye with its own lopsided projection.</td>
+</tr>
+
+<tr>
+<td><code>cmd/room</code></td>
+<td>The cube of <code>cmd/cube</code> in the player&rsquo;s own room: it opens the session with <code>Options.Passthrough</code>, and while <code>Frame.ShowsRoom</code> it draws with <code>gles.SceneRenderer.SeeThrough</code>, so the headset&rsquo;s cameras show the room wherever the cube is not. The first step of mixed reality; on a headset without passthrough it is the cube on black.</td>
+</tr>
+
+<tr>
+<td><code>explore</code></td>
+<td>Walks a player through any <code>scene.Scene</code> at room scale: <code>Run(world, Options)</code> is the whole program loop. <code>camera.RigWalk</code> walks the rig with the left stick the way the head looks and turns it in steps around the head with the right one, the floor on the scene&rsquo;s walkable ground under the head (<code>world.GroundHeight</code>). Y or B switches between a person (scale 1) and a giant (<code>GiantScale</code>, 20 by default), the head kept over the same point of the ground. The near plane grows with the scale, <code>Far</code> is the scene&rsquo;s; a cube in each tracked hand, as in <code>cmd/cube</code>. <code>Options.Start</code> is where the room stands at the start: the program decides. A frame&rsquo;s steering makes no garbage (tested); the views are made in the same slices every frame. <code>Show</code> explores another scene (the hands go with the player); <code>Move</code> puts the room somewhere else in the same one, at any scale. A program with its own loop (panels, say) calls <code>New</code>, then <code>Steer</code>, <code>Follow</code> and <code>Views</code> every frame instead of <code>Run</code>.</td>
+</tr>
+
+<tr>
+<td><code>cmd/explorer</code></td>
+<td>Go Renderer&rsquo;s sample island (<code>sample.Island()</code>, its afternoon light and fog) explored with <code>explore</code>. The player starts on the ground twelve metres south of the village square, facing it, at a person&rsquo;s size.</td>
+</tr>
+
+<tr>
+<td><code>pointer</code></td>
+<td>Points at panels with a controller, as a laser. <code>FromAim</code> is the ray along a hand&rsquo;s aim (-Z); <code>HitPanel</code> finds the pixel it meets on a panel, from the side it faces, and how far. A <code>Pointer</code> feeds an interface&rsquo;s own <code>input.State</code> from one hand each frame: the cursor to that pixel, the trigger as the left button (pressed past 0.7, let go under 0.3), the stick up and down as the wheel (<code>ScrollNotchesPerSecond</code> at full tilt); when the ray leaves the panel a held button is let go and the cursor leaves the interface. The state&rsquo;s window is the panel&rsquo;s picture. A <code>Beam</code> is a thin unlit bar from the hand to what it meets, placed through the rig, hidden on an untracked hand. Pointing makes no garbage (tested).</td>
+</tr>
+
+<tr>
+<td><code>cmd/panel</code></td>
+<td>A board of six tiles floating 1.5 m ahead over the sample island, a panel drawn by <code>gles.FlatRenderer</code> (linear colour): the right controller&rsquo;s beam points at it, the tile under it is outlined with a light buzz, the trigger lights a tile or puts it out with a stronger one. The board is drawn again only when it changes; the sticks walk the island while it stays with you.</td>
+</tr>
+
+<tr>
+<td><code>tools/AndroidManifest.xml</code></td>
+<td>The manifest every package gets: Android&rsquo;s <code>NativeActivity</code> loading <code>libmain.so</code>, the <code>com.oculus.intent.category.VR</code> category (immersive, not a flat window), head tracking required, <code>com.oculus.supportedDevices</code> (Quest 3 and 3S), <code>com.oculus.vr.focusaware</code> on the activity (the program keeps running, shown, while the system&rsquo;s menu is up), landscape, kept out of the recent list, never recreated by a configuration change (the session holds the activity), one at a time, no Java. It names the OpenXR permissions and the broker&rsquo;s providers the loader asks which runtime to load.</td>
+</tr>
+
+<tr>
+<td><code>tools/fetch-loader.sh</code></td>
+<td>Reads Maven Central&rsquo;s newest <code>org.khronos.openxr:openxr_loader_for_android</code>, downloads it, and keeps its arm64 <code>libopenxr_loader.so</code> and its licence in <code>third_party/openxr-loader/</code> (not committed). A version can be named: <code>tools/fetch-loader.sh 1.1.65</code>.</td>
+</tr>
+
+<tr>
+<td><code>tools/build-apk.sh</code></td>
+<td>Builds a program into <code>build/&lt;name&gt;.apk</code>, from the folder it runs in: <code>go build -buildmode=c-shared</code> with the NDK&rsquo;s clang and 16 KB pages, the manifest linked by <code>aapt2</code> against the newest platform&rsquo;s <code>android.jar</code>, the program&rsquo;s library and the loader stored uncompressed under <code>lib/arm64-v8a/</code>, aligned to 16 KB (<code>zipalign -P 16</code>), signed with the debug key (made if missing). Its id is <code>io.github.akrck02.metaquest.&lt;name&gt;</code> and its label the folder&rsquo;s name, unless <code>APK_ID</code> and <code>APK_LABEL</code> say otherwise: a program in a module of its own builds with the same script, under its own id.</td>
+</tr>
+
+<tr>
+<td><code>tools/install.sh</code></td>
+<td>Installs a package on the headset with <code>adb install -r</code>, starts it (by <code>APK_ID</code> when it was built with one), and shows the log under the tags <code>Go</code> and <code>OpenXR</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>What is not here is Go Renderer&rsquo;s, as on the 3DS: the drawing (<code>gles</code>), the activity (<code>android</code>),
+the OpenXR session, its swapchains and the controllers (<code>openxr</code>), the poses and the eyes&rsquo;
+projections (<code>graphics</code>), the rig and the covering lens (<code>camera</code>).</p>
+
+<h2 id="what-you-need">What you need</h2>
+
+<ul>
+<li>Go 1.25 or later.</li>
+<li>The Android SDK&rsquo;s build tools (<code>aapt2</code>, <code>zipalign</code> with <code>-P</code>, so 35 or later; <code>apksigner</code>) and a
+platform, in <code>ANDROID_HOME</code>; the NDK in <code>ANDROID_NDK_HOME</code>. On a Mac, Homebrew&rsquo;s
+<code>android-commandlinetools</code> is found without them.</li>
+<li>Go Renderer&rsquo;s headset pieces, which <code>go.mod</code> fetches by itself: a commit of its <code>feature/openxr</code>
+branch, until they are released.</li>
+<li><code>adb</code>, and a Meta Quest 3 or 3S in developer mode.</li>
+</ul>
+<pre><code class="language-bash">tools/build-apk.sh ./cmd/cube
+tools/install.sh build/cube.apk
+</code></pre>
+
+<h2 id="what-was-checked">What was checked</h2>
+
+<p><strong>On a Meta Quest 3</strong> (Android 14, API 34, connected with adb in developer mode), from the system&rsquo;s
+own log and the headset&rsquo;s screen captures (<code>adb exec-out screencap -p</code>, both eyes side by side):</p>
+
+<ul>
+<li>Both packages start immersive. The loader finds the runtime, and the session goes IDLE → READY →
+SYNCHRONIZED → VISIBLE → FOCUSED within a tenth of a second.</li>
+<li><code>cmd/clear</code>: each eye shows its own colour, the right eye half a turn behind on the colour wheel.
+With the system&rsquo;s menu open the session drops to VISIBLE and the program keeps drawing under it;
+going home stops the session (STOPPING → IDLE) and the program waits without spinning.</li>
+<li><code>cmd/cube</code>: the cube and both hands&rsquo; cubes are drawn in each eye, over the horizon&rsquo;s colour,
+with near things (the hands) further apart between the eyes than far ones, as they should be.</li>
+<li>Frames keep the headset&rsquo;s pace: 72 a second, none stale, the program&rsquo;s processor time under 1 ms
+a frame (the runtime&rsquo;s own <code>VrApi</code> line in <code>adb logcat</code>).</li>
+<li><code>cmd/room</code>: not checked on a headset. It builds for Android (its library compiles with the
+passthrough&rsquo;s C); whether the room shows behind the cube needs the headset.</li>
+<li><code>cmd/explorer</code>: the island is drawn in each eye at 72 frames a second, the program&rsquo;s processor
+time under 1 ms a frame, seen through the headset&rsquo;s screen recording (<code>adb exec-out screenrecord</code>)
+with the headset lying on a desk, so without the sticks.</li>
+<li><code>cmd/panel</code>: the board is shown over the island, its own colours (not washed out) and its title
+readable, at 72 frames a second, with the haptics server connected and no error in the log. The
+headset lay on a desk: pointing, clicking and the buzzes are not tried with hands yet.</li>
+</ul>
+
+<p>With the headset on, the cube was seen working as it should. Leaving from the system&rsquo;s menu (Quit)
+is not tried yet.</p>
+
+<p>On a Mac (Go 1.27, NDK 29, build tools 37, platform android-37, OpenXR loader 1.1.65):</p>
+
+<ul>
+<li><code>go vet ./...</code> and <code>go test ./...</code> pass: the loop&rsquo;s decisions (leave, wait, frame), the clock
+(the first frame, 72 frames a second, a long pause, time going back, a restart), the eyes&rsquo;
+colours, the cube&rsquo;s world (its size, faces pointing out, placed ahead at eye height and
+staying there, the hands&rsquo; cubes following tracked hands only), the island&rsquo;s start (on the ground south of
+the square), and the exploration&rsquo;s (the options&rsquo; defaults, the giant and back with the head over the same point, Y waiting
+for a tracked head, a second of the stick walking 1.5 m on the ground, the views and their
+covering lens, no allocations while steering).</li>
+<li><code>go vet</code> for Android (arm64, with the NDK&rsquo;s clang) passes on every package.</li>
+<li><code>tools/fetch-loader.sh</code> downloads the loader; <code>tools/build-apk.sh</code> builds <code>build/clear.apk</code>,
+<code>build/cube.apk</code> and <code>build/explorer.apk</code>. Each holds the manifest, <code>libmain.so</code> and <code>libopenxr_loader.so</code> stored
+uncompressed; <code>zipalign -c -P 16</code> and <code>apksigner verify</code> accept them, and both libraries&rsquo; segments
+are aligned to 16 KB.</li>
+<li>On an Android 16 phone emulator (arm64), both packages install and start: the Go runtime runs
+<code>main</code>, the drawing thread gets its OpenGL ES 3 context, and the OpenXR loader starts and asks the
+runtime broker for a runtime. A phone has none, so the program ends there, cleanly, with
+<code>openxr.instance-not-created</code> in the log (<code>adb logcat -s Go</code>).</li>
+</ul>
+
+<p>The manifest&rsquo;s SDK levels (minimum 32, target 34) follow Meta&rsquo;s documentation as last read; the
+headset above runs API 34.</p>
+
+<h2 id="not-yet">Not yet</h2>
+
+<ul>
+<li>Walking, turning and the giant tried with the headset on.</li>
+<li>Pointing at a panel, clicking and the buzzes, tried with the headset on; a Go UI interface on a
+panel (the pieces are there: <code>pointer</code> feeds an <code>input.State</code> as Go UI reads it).</li>
+<li>The headset&rsquo;s own settings: refresh rate, foveated rendering, passthrough.</li>
+<li>Drawing both eyes in one pass (multiview), sound, storage.</li>
+<li>A frame entirely without garbage: <code>camera.CoveringLens</code> (Go Renderer&rsquo;s) still makes two small
+slices a frame, and <code>explore</code> cannot avoid them.</li>
+<li>Programs on other headsets: the OpenXR part is standard, but the manifest is Meta&rsquo;s.</li>
+</ul>
